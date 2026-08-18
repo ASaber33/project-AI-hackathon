@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guideline AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<section id="welcomeScreen" class="welcome">
+    <div class="welcome-card auth-card">
+        <div class="logo">🩺</div>
+        <div class="eyebrow">MEDICAL GUIDELINE ASSISTANT</div>
+        <h1>Welcome to <span>Guideline AI</span></h1>
+        <p>Professional medical guidance for individual users with saved profile, history, and account-based access.</p>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" data-mode="login" type="button">Log In</button>
+            <button class="auth-tab" data-mode="signup" type="button">Create Account</button>
+        </div>
+
+        <form id="loginForm" class="auth-form active">
+            <input id="loginEmail" type="email" placeholder="Email" required>
+            <input id="loginPassword" type="password" placeholder="Password" required>
+            <button class="primary" type="submit">Login</button>
+        </form>
+
+        <form id="signupForm" class="auth-form">
+            <input id="signupName" type="text" placeholder="Full name" required>
+            <input id="signupEmail" type="email" placeholder="Email" required>
+            <input id="signupPassword" type="password" placeholder="Password" required>
+            <button class="primary" type="submit">Create Account</button>
+        </form>
+
+        <div class="pills">
+            <span>📚 Guideline RAG</span>
+            <span>💬 Personal Chat History</span>
+            <span>👤 Saved Medical Profile</span>
+            <span>⚙️ Settings</span>
+        </div>
+    </div>
+</section>
+
+<div id="app" class="app hidden">
+    <aside id="sidebar" class="sidebar">
+        <div class="side-head">
+            <button id="newChatBtn" class="new-chat">＋ New Chat</button>
+        </div>
+
+        <div class="label">Previous Chats</div>
+        <div id="chatList" class="chat-list"></div>
+
+        <div class="side-bottom">
+            <button id="logoutBtn" class="side-btn danger-btn">↩️ Logout</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div class="top-left">
+                <button id="mobileMenuBtn" class="icon mobile">☰</button>
+                <div class="brand-small">
+                    <div class="brand-icon">🩺</div>
+                    <div>
+                        <b>Guideline AI</b>
+                        <small>Clinical Knowledge Assistant</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="topThemeBtn" class="icon" type="button">🌙</button>
+                <button id="topProfileBtn" class="profile-mini" type="button">
+                    <img id="miniPhoto" alt="Profile">
+                    <span id="miniName">Profile</span>
+                </button>
+            </div>
+        </header>
+
+        <section id="chatArea" class="chat-area">
+            <div id="messages" class="messages"></div>
+        </section>
+
+        <div class="composer">
+            <form id="chatForm" class="composer-box">
+                <textarea id="messageInput" rows="1" placeholder="Ask your clinical question..."></textarea>
+                <button id="sendBtn" class="send" type="submit">➤</button>
+            </form>
+            <div class="disclaimer">Educational assistant. Verify important clinical decisions against the original guideline and a qualified clinician.</div>
+        </div>
+    </main>
+</div>
+
+<div id="settingsModal" class="modal">
+    <div class="modal-card settings-card">
+        <div class="modal-head">
+            <div>
+                <div class="eyebrow">SETTINGS</div>
+                <h2>Professional Assistant Settings</h2>
+            </div>
+            <button id="closeSettingsBtn" class="close">×</button>
+        </div>
+
+        <div class="settings-groups">
+            <div class="settings-block">
+                <h3>Appearance</h3>
+                <button id="themeBtn" class="secondary-btn" type="button">
+                    <span id="themeIcon">🌙</span>
+                    <span id="themeText">Dark Mode</span>
+                </button>
+            </div>
+
+            <div class="settings-block">
+                <h3>Medical Profile</h3>
+                <div class="photo-area">
+                    <img id="profilePhoto" class="photo" alt="Profile photo">
+                    <label class="upload">📷 Choose Photo<input id="photoInput" type="file" accept="image/*" hidden></label>
+                    <small>Maximum recommended size: 2 MB</small>
+                </div>
+
+                <div class="grid">
+                    <div class="field"><label>Full Name</label><input id="profileName"></div>
+                    <div class="field"><label>Age</label><input id="profileAge" type="number"></div>
+                    <div class="field"><label>Gender</label><select id="profileGender"><option value="">Prefer not to say</option><option>Female</option><option>Male</option><option>Other</option></select></div>
+                    <div class="field"><label>Blood Group</label><input id="profileBlood" placeholder="e.g. O+"></div>
+                    <div class="field full"><label>Medical History</label><textarea id="profileHistory"></textarea></div>
+                    <div class="field full"><label>Allergies</label><textarea id="profileAllergies"></textarea></div>
+                    <div class="field full"><label>Current Medications</label><textarea id="profileMedications"></textarea></div>
+                    <div class="field full"><label>Additional Details</label><textarea id="profileDetails"></textarea></div>
+                </div>
+                <button id="saveProfileBtn" class="primary save" type="button">Save Profile</button>
+            </div>
+
+            <div class="settings-block">
+                <h3>Account</h3>
+                <div id="accountSummary" class="account-summary">Signed in</div>
+                <button id="logoutSettingsBtn" class="secondary-btn danger-btn" type="button">Logout</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="profileModal" class="modal hidden"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
