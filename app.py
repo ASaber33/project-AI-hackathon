@@ -29,7 +29,7 @@ from rag import (
 # =========================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
 
 # Debug startup info
 import sys
@@ -111,7 +111,7 @@ init_db()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv(
     "GROQ_MODEL",
-    "mixtral-8x7b-32768"  # Changed from llama-3.3-70b-versatile
+    "openai/gpt-oss-20b"
 )
 
 if GROQ_API_KEY:
