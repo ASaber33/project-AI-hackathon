@@ -805,6 +805,47 @@ if ($("mobileMenuBtn")) {
     $("mobileMenuBtn").onclick = () => { $("sidebar").classList.toggle("open"); };
 }
 
+if ($("sidebar")) {
+    const sidebar = $("sidebar");
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchAxis = null;
+
+    sidebar.addEventListener("touchstart", (event) => {
+        if (!sidebar.classList.contains("open") || event.touches.length !== 1) return;
+        touchStartX = event.touches[0].clientX;
+        touchStartY = event.touches[0].clientY;
+        touchAxis = null;
+    }, { passive: true });
+
+    sidebar.addEventListener("touchmove", (event) => {
+        if (!sidebar.classList.contains("open") || event.touches.length !== 1) return;
+        const deltaX = event.touches[0].clientX - touchStartX;
+        const deltaY = event.touches[0].clientY - touchStartY;
+
+        if (!touchAxis && (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8)) {
+            touchAxis = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
+        }
+        if (touchAxis !== "horizontal" || deltaX >= 0) return;
+
+        sidebar.classList.add("swiping");
+        sidebar.style.transform = `translateX(${Math.max(deltaX, -sidebar.offsetWidth)}px)`;
+        event.preventDefault();
+    }, { passive: false });
+
+    const finishSidebarSwipe = (event) => {
+        if (!sidebar.classList.contains("swiping")) return;
+        const endX = event.changedTouches?.[0]?.clientX ?? touchStartX;
+        const shouldClose = endX - touchStartX < -70;
+        sidebar.classList.remove("swiping");
+        sidebar.style.transform = "";
+        if (shouldClose) sidebar.classList.remove("open");
+    };
+
+    sidebar.addEventListener("touchend", finishSidebarSwipe, { passive: true });
+    sidebar.addEventListener("touchcancel", finishSidebarSwipe, { passive: true });
+}
+
 async function loadBackendHistory(chatId) {
     try {
         const response = await fetch(`/history/${encodeURIComponent(chatId)}`);
