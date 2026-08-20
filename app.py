@@ -410,6 +410,24 @@ def is_respiratory_question(text):
     return any(term in normalized for term in respiratory_terms)
 
 
+def has_respiratory_context(history):
+    return any(
+        message.get("role") == "user" and is_respiratory_question(message.get("text", ""))
+        for message in history
+    )
+
+
+def contextual_retrieval_query(question, history):
+    previous_questions = [
+        message.get("text", "")
+        for message in history[:-1]
+        if message.get("role") == "user" and is_respiratory_question(message.get("text", ""))
+    ]
+    if not previous_questions:
+        return retrieval_query(question)
+    return retrieval_query(f"{previous_questions[-1]} {question}")
+
+
 def retrieval_query(question):
     expansions = {
         "ربو": "asthma",
@@ -749,15 +767,16 @@ def generate_answer(
         return "GROQ_API_KEY is not configured. Please add it to your .env file."
 
     question = normalize_question(question)
+    respiratory_context = has_respiratory_context(history)
 
-    if not is_respiratory_question(question):
+    if not is_respiratory_question(question) and not respiratory_context:
         return (
             "هذا الشات مخصص لمشاكل التنفس والصدر فقط، مثل الكحة وضيق النفس والربو. "
             "اكتب سؤالك عن عرض تنفسي لأساعدك."
         )
 
     try:
-        results = search_guidelines(retrieval_query(question), TOP_K)
+        results = search_guidelines(contextual_retrieval_query(question, history), TOP_K)
     except Exception as error:
         print(f"[RAG] Local search unavailable: {error}", file=sys.stderr)
         results = []
