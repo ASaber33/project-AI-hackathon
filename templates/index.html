@@ -26,6 +26,7 @@
             <input id="loginEmail" type="email" placeholder="Email" required>
             <input id="loginPassword" type="password" placeholder="Password" required>
             <button class="primary" type="submit">Login</button>
+            <button id="guestBtn" class="guest-btn" type="button">Continue as Guest</button>
         </form>
 
         <form id="signupForm" class="auth-form">
@@ -54,7 +55,7 @@
         <div id="chatList" class="chat-list"></div>
 
         <div class="side-bottom">
-            <button id="logoutBtn" class="side-btn danger-btn">↩️ Logout</button>
+            <button id="logoutBtn" class="side-btn danger-btn"><span class="logout-icon" aria-hidden="true">⎋</span><span>Logout</span></button>
         </div>
     </aside>
 
@@ -72,7 +73,9 @@
             </div>
 
             <div class="actions">
+                <div id="usageCounter" class="usage-counter" aria-label="Daily message usage">0/30</div>
                 <button id="topThemeBtn" class="icon" type="button">🌙</button>
+                <button id="languageBtn" class="icon language-btn" type="button" aria-label="Change language">ع</button>
                 <button id="topProfileBtn" class="profile-mini" type="button">
                     <img id="miniPhoto" alt="Profile">
                     <span id="miniName">Profile</span>
@@ -85,6 +88,12 @@
         </section>
 
         <div class="composer">
+            <div id="suggestions" class="suggestions" aria-label="Suggested questions">
+                <button class="suggestion" type="button">ما أسباب ضيق التنفس؟</button>
+                <button class="suggestion" type="button">متى تكون الكحة خطيرة؟</button>
+                <button class="suggestion" type="button">كيف أخفف الحموضة؟</button>
+                <button class="suggestion" type="button">ما علامات نقص الحديد؟</button>
+            </div>
             <form id="chatForm" class="composer-box">
                 <textarea id="messageInput" rows="1" placeholder="Ask your clinical question..."></textarea>
                 <button id="sendBtn" class="send" type="submit">➤</button>
@@ -111,6 +120,14 @@
                     <span id="themeIcon">🌙</span>
                     <span id="themeText">Dark Mode</span>
                 </button>
+                <div class="appearance-control">
+                    <label>Font size</label>
+                    <div class="font-control">
+                        <button id="fontDownBtn" class="font-step" type="button" aria-label="Decrease font size">A−</button>
+                        <span id="fontSizeLabel">100%</span>
+                        <button id="fontUpBtn" class="font-step" type="button" aria-label="Increase font size">A+</button>
+                    </div>
+                </div>
             </div>
 
             <div class="settings-block">
@@ -145,6 +162,6 @@
 
 <div id="profileModal" class="modal hidden"></div>
 
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js', v='20260819-18') }}"></script>
 </body>
 </html>

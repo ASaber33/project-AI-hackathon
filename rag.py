@@ -5,6 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import re
 import hashlib
+import uuid
 
 from pathlib import Path
 
@@ -138,6 +139,7 @@ def get_qdrant():
             api_key=QDRANT_API_KEY
             if QDRANT_API_KEY
             else None,
+            timeout=60,
         )
 
     return _qdrant
@@ -348,9 +350,8 @@ def make_point_id(document):
         "utf-8"
     )
 
-    return hashlib.sha256(
-        raw
-    ).hexdigest()
+    digest = hashlib.sha256(raw).hexdigest()
+    return str(uuid.UUID(digest[:32]))
 
 
 # =========================================================
@@ -481,7 +482,7 @@ def build_index(
     # UPLOAD
     # -----------------------------------------------------
 
-    batch_size = 128
+    batch_size = 32
 
     for i in range(
         0,

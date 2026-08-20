@@ -11,6 +11,7 @@ const DEFAULT_AVATAR =
 
 let currentChatId = localStorage.getItem("currentChatId") || null;
 let currentUser = null;
+const guestMessages = {};
 
 function getCurrentUser() {
     try {
@@ -33,6 +34,11 @@ function clearCurrentUser() {
     currentChatId = null;
 }
 
+function handleUnauthorized() {
+    clearCurrentUser();
+    showAuthScreen();
+}
+
 function userStoragePrefix() {
     return currentUser ? `user_${currentUser.id}` : "guest";
 }
@@ -52,6 +58,7 @@ function saveProfileLocal(profile) {
 }
 
 function getChats() {
+    if (currentUser?.guest) return [];
     try {
         const key = `${userStoragePrefix()}_chatIndex`;
         return JSON.parse(localStorage.getItem(key) || "[]");
@@ -61,10 +68,12 @@ function getChats() {
 }
 
 function saveChats(chats) {
+    if (currentUser?.guest) return;
     localStorage.setItem(`${userStoragePrefix()}_chatIndex`, JSON.stringify(chats));
 }
 
 function getMessages(chatId) {
+    if (currentUser?.guest) return guestMessages[chatId] || [];
     try {
         const key = `${userStoragePrefix()}_messages_${chatId}`;
         return JSON.parse(localStorage.getItem(key) || "[]");
@@ -74,6 +83,10 @@ function getMessages(chatId) {
 }
 
 function saveMessages(chatId, messages) {
+    if (currentUser?.guest) {
+        guestMessages[chatId] = messages;
+        return;
+    }
     localStorage.setItem(`${userStoragePrefix()}_messages_${chatId}`, JSON.stringify(messages));
 }
 
@@ -81,6 +94,57 @@ function escapeHTML(value) {
     const div = document.createElement("div");
     div.textContent = value ?? "";
     return div.innerHTML;
+}
+
+function addAnswerContent(container, text) {
+    const parts = text.split("\n\nSources\n");
+    const answer = document.createElement("div");
+    answer.textContent = parts[0];
+    container.appendChild(answer);
+
+    if (!parts[1]) return;
+
+    const sources = document.createElement("div");
+    sources.className = "source-list";
+    parts[1].split("\n").filter(Boolean).forEach((line) => {
+        const source = document.createElement("div");
+        source.className = "source-item";
+        const webMatch = line.match(/^- Web: (.+?) - (https?:\/\/\S+)/);
+        const searchMatch = line.match(/^- Web search: (https?:\/\/\S+)/);
+        const pdfMatch = line.match(/^- PDF: (.+?) - (\/guidelines\/\S+#page=\d+)$/);
+        if (webMatch || searchMatch) {
+            const link = document.createElement("a");
+            const url = webMatch ? webMatch[2] : searchMatch[1];
+            link.href = url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.className = "source-link";
+            link.title = url;
+            const logo = document.createElement("span");
+            logo.className = "source-logo web-logo";
+            logo.textContent = "↗";
+            const label = document.createElement("span");
+            label.textContent = webMatch ? webMatch[1] : "Web search";
+            link.append(logo, label);
+            source.appendChild(link);
+        } else if (pdfMatch) {
+            const label = document.createElement("a");
+            label.href = pdfMatch[2];
+            label.target = "_blank";
+            label.rel = "noopener noreferrer";
+            label.title = "Open PDF guideline";
+            label.className = "source-link pdf-source";
+            const logo = document.createElement("span");
+            logo.className = "source-logo pdf-logo";
+            logo.textContent = "PDF";
+            label.append(logo, document.createTextNode(pdfMatch[1]));
+            source.appendChild(label);
+        } else {
+            source.textContent = line;
+        }
+        sources.appendChild(source);
+    });
+    container.appendChild(sources);
 }
 
 function getTime() {
@@ -111,10 +175,43 @@ function toggleTheme() {
     setTheme(dark ? "light" : "dark");
 }
 
+const languageText = {
+    en: { login: "Login", signup: "Create Account", guest: "Continue as Guest", newChat: "＋ New Chat", logout: "Logout", previous: "Previous Chats", placeholder: "Ask your clinical question..." },
+    ar: { login: "تسجيل الدخول", signup: "إنشاء حساب", guest: "المتابعة كضيف", newChat: "＋ محادثة جديدة", logout: "تسجيل الخروج", previous: "المحادثات السابقة", placeholder: "اكتب سؤالك التنفسي..." },
+};
+
+function setLanguage(language) {
+    const text = languageText[language] || languageText.en;
+    document.documentElement.lang = language;
+    document.body.dir = language === "ar" ? "rtl" : "ltr";
+    if ($("loginForm")?.querySelector(".primary")) $("loginForm").querySelector(".primary").textContent = text.login;
+    if ($("signupForm")?.querySelector(".primary")) $("signupForm").querySelector(".primary").textContent = text.signup;
+    if ($("guestBtn")) $("guestBtn").textContent = text.guest;
+    if ($("newChatBtn")) $("newChatBtn").textContent = text.newChat;
+    if ($("logoutBtn")) $("logoutBtn").querySelector("span:last-child").textContent = text.logout;
+    if ($("messageInput")) $("messageInput").placeholder = text.placeholder;
+    localStorage.setItem("language", language);
+    if ($("languageBtn")) $("languageBtn").textContent = language === "ar" ? "EN" : "ع";
+}
+
+function toggleLanguage() {
+    setLanguage((localStorage.getItem("language") || "en") === "en" ? "ar" : "en");
+}
+
+function setFontScale(scale) {
+    const safeScale = Math.max(0.9, Math.min(2, scale));
+    document.documentElement.style.setProperty("--font-scale", safeScale);
+    localStorage.setItem("fontScale", String(safeScale));
+    if ($("fontSizeLabel")) $("fontSizeLabel").textContent = `${Math.round(safeScale * 100)}%`;
+}
+
 function updateProfileUI() {
     const profile = getProfile();
     const name = profile.name || currentUser?.name || "Profile";
     if ($("miniName")) $("miniName").textContent = name;
+    if ($("miniPhoto")) {
+        $("miniPhoto").src = profile.photo || DEFAULT_AVATAR;
+    }
     if ($("accountSummary")) $("accountSummary").textContent = currentUser ? `Signed in as ${currentUser.name}` : "Not signed in";
 }
 
@@ -161,9 +258,12 @@ function saveProfileToServer() {
 
 if ($("themeBtn")) $("themeBtn").onclick = toggleTheme;
 if ($("topThemeBtn")) $("topThemeBtn").onclick = toggleTheme;
+if ($("languageBtn")) $("languageBtn").onclick = toggleLanguage;
 if ($("topProfileBtn")) $("topProfileBtn").onclick = openSettings;
 if ($("closeSettingsBtn")) $("closeSettingsBtn").onclick = closeSettings;
 if ($("settingsModal")) $("settingsModal").onclick = (event) => { if (event.target === $("settingsModal")) closeSettings(); };
+if ($("fontDownBtn")) $("fontDownBtn").onclick = () => setFontScale(parseFloat(localStorage.getItem("fontScale") || "1") - 0.05);
+if ($("fontUpBtn")) $("fontUpBtn").onclick = () => setFontScale(parseFloat(localStorage.getItem("fontScale") || "1") + 0.05);
 
 if ($("saveProfileBtn")) {
     $("saveProfileBtn").onclick = async () => {
@@ -173,6 +273,21 @@ if ($("saveProfileBtn")) {
         } catch (e) {
             console.error(e);
             alert("Could not save profile.");
+        }
+    };
+}
+
+if ($("guestBtn")) {
+    $("guestBtn").onclick = async () => {
+        try {
+            const response = await fetch("/auth/guest", { method: "POST" });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || "Guest mode is unavailable.");
+            currentUser = data.user;
+            currentChatId = null;
+            await showAppScreen();
+        } catch (error) {
+            alert(error.message);
         }
     };
 }
@@ -198,16 +313,31 @@ function showAuthScreen() {
     if ($("signupForm")) $("signupForm").classList.remove("active");
 }
 
-function showAppScreen() {
+async function showAppScreen() {
     $("welcomeScreen").classList.add("hidden");
     $("app").classList.remove("hidden");
+    currentChatId = null;
+    localStorage.removeItem("currentChatId");
     setTheme(localStorage.getItem("theme") || "light");
     updateProfileUI();
-    ensureChat();
+    loadUsage();
+    await loadBackendChats();
     renderChatList();
-    renderMessages(getMessages(currentChatId));
-    if (currentChatId) loadBackendHistory(currentChatId);
+    renderMessages([]);
     $("messageInput")?.focus();
+}
+
+async function loadUsage() {
+    try {
+        const response = await fetch("/usage");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.success && $("usageCounter")) {
+            $("usageCounter").textContent = `${data.used}/${data.limit}`;
+        }
+    } catch (error) {
+        console.warn("Usage load failed", error);
+    }
 }
 
 async function checkAuth() {
@@ -322,15 +452,10 @@ if (document.querySelector(".auth-tab")) {
 
 function createChat() {
     const id = "chat-" + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random());
-    const chatList = getChats();
-    chatList.unshift({ id, title: "New conversation", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
-    saveChats(chatList);
     saveMessages(id, []);
     currentChatId = id;
     localStorage.setItem("currentChatId", id);
-    renderChatList();
     renderMessages([]);
-    fetch("/new_chat", { method: "POST" }).catch(() => {});
     return id;
 }
 
@@ -341,6 +466,32 @@ function ensureChat() {
     }
     const exists = getChats().some((chat) => chat.id === currentChatId);
     if (!exists) createChat();
+}
+
+async function loadBackendChats() {
+    try {
+        const response = await fetch("/chats");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.success || !Array.isArray(data.chats)) return;
+
+        const localChats = getChats().filter((chat) => getMessages(chat.id).length > 0);
+        const localById = new Map(localChats.map((chat) => [chat.id, chat]));
+        data.chats.forEach((chat) => {
+            const local = localById.get(chat.id);
+            localById.set(chat.id, { ...chat, ...(local || {}) });
+        });
+        const chats = Array.from(localById.values()).sort(
+            (a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
+        );
+        saveChats(chats);
+        if (currentChatId && !chats.some((chat) => chat.id === currentChatId)) {
+            currentChatId = null;
+            localStorage.removeItem("currentChatId");
+        }
+    } catch (error) {
+        console.warn("Could not load chat list:", error);
+    }
 }
 
 async function deleteChat(chatId) {
@@ -382,7 +533,7 @@ function renderChatList() {
                 <div class="chat-title">${escapeHTML(chat.title)}</div>
                 <div class="chat-date">${getDate(chat.updated_at)}</div>
             </div>
-            <button class="delete-chat-btn" title="Delete chat" onclick="event.stopPropagation(); deleteChat('${chat.id}')">✕</button>
+            <button class="delete-chat-btn" title="Delete chat" aria-label="Delete chat" onclick="event.stopPropagation(); deleteChat('${chat.id}')">×</button>
         `;
 
         item.onclick = () => {
@@ -401,6 +552,7 @@ function renderChatList() {
 function renderMessages(messages) {
     const container = $("messages");
     if (!container) return;
+    updateSuggestions(messages);
     container.innerHTML = "";
     if (!messages.length) {
         container.innerHTML = `
@@ -441,7 +593,11 @@ function addMessageUI(role, text, time = getTime(), scroll = true) {
     name.textContent = isUser ? "You" : "Guideline Assistant";
 
     const content = document.createElement("div");
-    content.textContent = text;
+    if (isUser) {
+        content.textContent = text;
+    } else {
+        addAnswerContent(content, text);
+    }
     bubble.appendChild(name);
     bubble.appendChild(content);
 
@@ -513,14 +669,50 @@ function updateChatTitle(message) {
     renderChatList();
 }
 
+const suggestionSets = {
+    breathing: ["متى يكون ضيق التنفس خطيرًا؟", "ما أسباب الصفير في الصدر؟", "كيف أخفف الكحة بأمان؟", "متى أحتاج للطوارئ؟"],
+    allergy: ["كيف أخفف أعراض الحساسية؟", "ما الفرق بين الحساسية والبرد؟", "هل المحلول الملحي مفيد؟", "متى أراجع الطبيب؟"],
+    digestive: ["هل الارتجاع يسبب كحة؟", "هل الحموضة قد تسبب ضيق النفس؟", "متى أراجع الطبيب بسبب كحة ليلية؟", "هل أحتاج تقييمًا للصدر؟"],
+    headache: ["هل الصداع مع ضيق النفس خطير؟", "هل الدوخة مع صعوبة التنفس تستدعي الطوارئ؟", "ما علامات نقص الأكسجين؟", "متى أحتاج فحصًا عاجلًا؟"],
+    stress: ["هل القلق يسبب ضيق النفس؟", "ما تمارين التنفس الآمنة؟", "كيف أفرق بين القلق ونوبة الربو؟", "متى أطلب مساعدة عاجلة؟"],
+    medicine: ["ما الآثار الجانبية لأدوية الحساسية؟", "هل يتعارض دواء الحساسية مع أدوية أخرى؟", "هل يناسب دواء الكحة الأطفال؟", "متى أوقف الدواء وأراجع الطبيب؟"],
+    general: ["ما الأعراض التنفسية التي تستدعي الطبيب؟", "ما الخطوات الآمنة لتخفيف الكحة؟", "ما المعلومات المهمة عن ضيق النفس؟", "متى أحتاج إلى طوارئ بسبب التنفس؟"],
+};
+
+function updateSuggestions(messages = []) {
+    const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
+    const text = (lastUserMessage?.text || "").toLowerCase();
+    let category = "general";
+    if (/تنفس|نهجان|نهج|صدر|كحه|كحة|صفير|بلغم|اختناق/.test(text)) category = "breathing";
+    else if (/حساسيه|حساسية|رشح|عطس|حكة|حكه/.test(text)) category = "allergy";
+    else if (/بطن|معده|معدة|حموضه|حموضة|غثيان|قيء|اسهال|إسهال/.test(text)) category = "digestive";
+    else if (/صداع|دوخه|دوخة|رأس|راس|خفقان/.test(text)) category = "headache";
+    else if (/توتر|قلق|نوم|نائم|أرق|ارق/.test(text)) category = "stress";
+    else if (/دواء|علاج|حبوب|جرعة|جرعه|مضاد/.test(text)) category = "medicine";
+    document.querySelectorAll(".suggestion").forEach((button, index) => {
+        button.textContent = suggestionSets[category][index];
+    });
+}
+
 async function sendMessage(message) {
     ensureChat();
     const messages = getMessages(currentChatId);
     const userMessage = { role: "user", text: message, time: getTime() };
     messages.push(userMessage);
     saveMessages(currentChatId, messages);
+    const chatList = getChats();
+    if (!chatList.some((chat) => chat.id === currentChatId)) {
+        chatList.unshift({
+            id: currentChatId,
+            title: "New conversation",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+        saveChats(chatList);
+    }
     addMessageUI("user", message);
     updateChatTitle(message);
+    updateSuggestions(messages);
 
     showTyping();
     $("sendBtn").disabled = true;
@@ -534,8 +726,22 @@ async function sendMessage(message) {
         });
 
         const data = await response.json();
+        if (response.status === 401) {
+            hideTyping();
+            handleUnauthorized();
+            alert("Your session expired. Please log in again.");
+            return;
+        }
+        if (!response.ok) {
+            throw new Error(data.error || "The assistant could not complete the request.");
+        }
+        if (data.daily_limit_exhausted) {
+            if ($("usageCounter")) $("usageCounter").textContent = `${data.used_messages}/${data.daily_limit}`;
+        } else {
+            loadUsage();
+        }
         hideTyping();
-        const botText = data.response || "No response was returned.";
+        const botText = data.response || "The assistant returned an empty response. Please try again.";
 
         const updatedMessages = getMessages(currentChatId);
         updatedMessages.push({ role: "bot", text: botText, time: getTime() });
@@ -544,7 +750,7 @@ async function sendMessage(message) {
     } catch (error) {
         console.error(error);
         hideTyping();
-        addMessageUI("bot", "⚠️ I couldn't connect to the server. Make sure Flask is running.");
+        addMessageUI("bot", `⚠️ ${error.message || "I couldn't connect to the server."}`);
     }
 
     $("sendBtn").disabled = false;
@@ -578,6 +784,16 @@ if ($("messageInput")) {
     };
 }
 
+document.querySelectorAll(".suggestion").forEach((button) => {
+    button.onclick = () => {
+        const input = $("messageInput");
+        if (!input || input.disabled) return;
+        input.value = button.textContent.trim();
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+    };
+});
+
 if ($("newChatBtn")) {
     $("newChatBtn").onclick = () => {
         createChat();
@@ -604,6 +820,8 @@ async function loadBackendHistory(chatId) {
 }
 
 setTheme(localStorage.getItem("theme") || "light");
+setLanguage(localStorage.getItem("language") || "en");
+setFontScale(parseFloat(localStorage.getItem("fontScale") || "1"));
 currentUser = getCurrentUser();
 if (currentUser) {
     loadProfileFromServer().finally(() => showAppScreen());
